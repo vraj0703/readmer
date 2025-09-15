@@ -4,14 +4,11 @@ import subprocess
 import time
 
 # --- Configuration ---
-OLLAMA_MODEL = "phi3"
+OLLAMA_MODEL = "llama3"
 
 def gather_code_from_path(target_path):
     """
     Gathers all source code from a given file or directory.
-
-    Returns:
-        A dictionary where keys are file paths and values are file contents.
     """
     all_code = {}
     supported_extensions = ('.py', '.js', '.ts', '.go', '.rs', '.java', '.dart', '.html', '.css')
@@ -66,13 +63,20 @@ def generate_readme(all_code, readme_format):
     """
 
     try:
-        command = ['ollama', 'run', OLLAMA_MODEL, prompt]
+        # MODIFIED: The prompt is no longer passed as a command-line argument.
+        command = ['ollama', 'run', OLLAMA_MODEL]
+
         print("\n🤖 Asking Ollama to generate the README. This may take a few minutes for large projects...")
         start_time = time.time()
 
         result = subprocess.run(
-            command, capture_output=True, text=True, check=True,
-            timeout=600,  # 10-minute timeout for potentially large projects
+            command,
+            capture_output=True,
+            text=True,
+            check=True,
+            # MODIFIED: The large prompt is now passed securely via stdin.
+            input=prompt,
+            timeout=600,
             encoding='utf-8'
         )
 
@@ -109,17 +113,14 @@ def main():
         print("Error: `format.txt` not found. Please create it to define your README structure.")
         sys.exit(1)
 
-    # Step 1: Gather all the code
     all_code = gather_code_from_path(target_path)
 
     if not all_code:
         print("⚠️ No supported code files found to generate a README from.")
         sys.exit(0)
 
-    # Step 2: Generate the README content
     readme_content = generate_readme(all_code, readme_format)
 
-    # Step 3: Save the README.md file
     if readme_content:
         output_path = ""
         if os.path.isdir(target_path):
