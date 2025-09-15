@@ -6,9 +6,10 @@ import time
 # --- Configuration ---
 OLLAMA_MODEL = "llama3"
 
+
 def gather_code_from_path(target_path):
     """
-    Gathers all source code from a given file or directory.
+    Gathers all source code from a given file or directory, ignoring hidden folders.
     """
     all_code = {}
     supported_extensions = ('.py', '.js', '.ts', '.go', '.rs', '.java', '.dart', '.html', '.css')
@@ -20,7 +21,12 @@ def gather_code_from_path(target_path):
                 all_code[target_path] = f.read()
     elif os.path.isdir(target_path):
         print(f"📁 Reading all files in directory: {target_path}")
-        for root, _, files in os.walk(target_path):
+        for root, dirs, files in os.walk(target_path):
+
+            # --- MODIFIED: This line ignores hidden folders ---
+            dirs[:] = [d for d in dirs if not d.startswith('.')]
+            # --- END MODIFICATION ---
+
             for file in files:
                 if file.endswith(supported_extensions):
                     file_path = os.path.join(root, file)
@@ -28,6 +34,7 @@ def gather_code_from_path(target_path):
                     with open(file_path, 'r', encoding='utf-8') as f:
                         all_code[file_path] = f.read()
     return all_code
+
 
 def generate_readme(all_code, readme_format):
     """
@@ -63,30 +70,20 @@ def generate_readme(all_code, readme_format):
     """
 
     try:
-        # MODIFIED: The prompt is no longer passed as a command-line argument.
         command = ['ollama', 'run', OLLAMA_MODEL]
 
         print("\n🤖 Asking Ollama to generate the README. This may take a few minutes for large projects...")
         start_time = time.time()
 
         result = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            check=True,
-            # MODIFIED: The large prompt is now passed securely via stdin.
-            input=prompt,
-            timeout=600,
-            encoding='utf-8'
+            command, input=prompt, capture_output=True, text=True,
+            check=True, timeout=600, encoding='utf-8'
         )
 
         duration = time.time() - start_time
         print(f"✅ Ollama generation finished in {duration:.2f} seconds.")
         return result.stdout.rstrip()
 
-    except subprocess.TimeoutExpired:
-        print(f"❌ Error: Ollama command timed out after 10 minutes.")
-        return None
     except Exception as e:
         print(f"❌ An unexpected error occurred: {e}")
         return None
@@ -125,7 +122,7 @@ def main():
         output_path = ""
         if os.path.isdir(target_path):
             output_path = os.path.join(target_path, 'README.md')
-        else: # It's a file
+        else:  # It's a file
             output_path = os.path.join(os.path.dirname(target_path), 'README.md')
 
         with open(output_path, 'w', encoding='utf-8') as f:
@@ -133,6 +130,7 @@ def main():
         print(f"\n✨ Successfully created README.md at: {output_path}")
     else:
         print("\n❌ Failed to generate README.md content.")
+
 
 if __name__ == "__main__":
     main()
